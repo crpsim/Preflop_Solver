@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { PROFILE_LABELS, getAction } from '../ranges'
 import {
   ACTION_LABELS,
   BB_VALUES,
@@ -37,7 +38,7 @@ const loadPersistentStats = () => {
   }
 }
 
-export default function TrainerQuizPage() {
+export default function TrainerQuizPage({ profile }) {
   const [format, setFormat] = useState('3W')
   const [spotKey, setSpotKey] = useState('RANDOM')
   const [depth, setDepth] = useState('RANDOM')
@@ -85,13 +86,14 @@ export default function TrainerQuizPage() {
 
   const generateNewHand = () => {
     const effectiveBb = depth === 'RANDOM' ? randomItem(BB_VALUES) : Number(depth)
-    const resolved = resolveSpotAndTable({ format, spotKey, effectiveBb })
+    const resolved = resolveSpotAndTable({ format, spotKey, effectiveBb, profile })
 
     if (resolved.status !== 'ok') {
       setQuestion({
         status: resolved.status,
         message: resolved.message,
         format,
+        profile: resolved.profile,
         heroPosition: resolved.spot?.heroPosition ?? '-',
         previousActions: resolved.spot?.previousActions ?? [],
         effectiveBb,
@@ -105,12 +107,20 @@ export default function TrainerQuizPage() {
       difficulty,
     })
 
-    const expectedAction = resolved.table.grid?.[hand]
-    if (!expectedAction) {
+    const actionResult = getAction({
+      format,
+      spotKey: resolved.spot.key,
+      effectiveBb,
+      handCode: hand,
+      profile,
+    })
+
+    if (actionResult.status !== 'ok') {
       setQuestion({
         status: 'missing',
         message: 'Table manquante pour ce spot / cette profondeur.',
         format,
+        profile: resolved.profile,
         heroPosition: resolved.spot.heroPosition,
         previousActions: resolved.spot.previousActions ?? [],
         effectiveBb,
@@ -122,12 +132,13 @@ export default function TrainerQuizPage() {
     setQuestion({
       status: 'ready',
       format,
+      profile: resolved.profile,
       spotKey: resolved.spot.key,
       heroPosition: resolved.spot.heroPosition,
       previousActions: resolved.spot.previousActions ?? [],
       effectiveBb,
       hand,
-      expectedAction,
+      expectedAction: actionResult.action,
       actions: getActionsFromGrid(resolved.table.grid),
     })
     setFeedback(null)
@@ -156,6 +167,7 @@ export default function TrainerQuizPage() {
       isCorrect,
       selectedAction,
       expectedAction: question.expectedAction,
+      profile: question.profile ?? profile,
     })
   }
 
@@ -177,6 +189,9 @@ export default function TrainerQuizPage() {
           <div>
             <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Spin &amp; Go helper</p>
             <h1 className="mt-1 text-lg font-bold sm:text-xl">Trainer Quiz</h1>
+            <p className="text-xs text-slate-400">
+              Profil actif: <span className="font-semibold text-slate-200">{PROFILE_LABELS[profile] ?? PROFILE_LABELS.gto}</span>
+            </p>
           </div>
           <button
             type="button"
@@ -383,6 +398,7 @@ export default function TrainerQuizPage() {
                 <p className="font-semibold">{feedback.isCorrect ? 'Correct' : 'Incorrect'}</p>
                 <p className="mt-1">GTO: {formatActionLabel(feedback.expectedAction)}</p>
                 <p>Ton choix: {formatActionLabel(feedback.selectedAction)}</p>
+                <p>Profil: {PROFILE_LABELS[feedback.profile] ?? PROFILE_LABELS.gto}</p>
               </div>
             )}
           </div>

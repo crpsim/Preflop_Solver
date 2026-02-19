@@ -1,10 +1,6 @@
-import open3WayTables from '../assets/json/open_3way_tables.json'
-import def3wVsOpenTables from '../assets/json/def_3w_vs_open_tables.json'
-import def3wVsLimpTables from '../assets/json/def_3w_vs_limp_tables.json'
-import callOpenShoveTables from '../assets/json/3w_call_open_shove_tables.json'
-import huTables from '../assets/json/hu_tables.json'
+import { BB_VALUES, SPOTS_BY_FORMAT, resolveSpotAndTable } from '../ranges'
 
-export const BB_VALUES = [25, 20, 15, 10, 5]
+export { BB_VALUES, SPOTS_BY_FORMAT, resolveSpotAndTable }
 
 export const ACTION_LABELS = {
   fold: 'Fold',
@@ -77,242 +73,6 @@ const buildAllHands = () => {
 
 export const ALL_HANDS = buildAllHands()
 
-export const SPOTS_3W = [
-  {
-    key: '3W_OPEN_BTN',
-    format: '3W',
-    label: 'Open 3Way BTN',
-    heroPosition: 'BTN',
-    previousActions: [],
-    getTable: (effectiveBb) =>
-      open3WayTables.tables.find((item) => item.position === 'BTN' && item.effective_bb === effectiveBb),
-  },
-  {
-    key: '3W_OPEN_SB_BTN_FOLD',
-    format: '3W',
-    label: 'Open 3Way SB (BTN fold)',
-    heroPosition: 'SB',
-    previousActions: ['BTN: fold'],
-    getTable: (effectiveBb) =>
-      open3WayTables.tables.find((item) => item.position === 'SB' && item.effective_bb === effectiveBb),
-  },
-  {
-    key: '3W_DEF_OPEN_BB_VS_BTN_OPEN',
-    format: '3W',
-    label: 'Def 3W vs OPEN: BB vs BTN open',
-    heroPosition: 'BB',
-    previousActions: ['BTN: open'],
-    getTable: (effectiveBb) =>
-      def3wVsOpenTables.tables.find(
-        (item) =>
-          item.hero_position === 'BB' &&
-          item.effective_bb === effectiveBb &&
-          typeof item.vs === 'string' &&
-          item.vs.startsWith('BTN '),
-      ),
-  },
-  {
-    key: '3W_DEF_OPEN_SB_VS_BTN_OPEN',
-    format: '3W',
-    label: 'Def 3W vs OPEN: SB vs BTN open',
-    heroPosition: 'SB',
-    previousActions: ['BTN: open'],
-    getTable: (effectiveBb) =>
-      def3wVsOpenTables.tables.find(
-        (item) =>
-          item.hero_position === 'SB' &&
-          item.effective_bb === effectiveBb &&
-          typeof item.vs === 'string' &&
-          item.vs.startsWith('BTN '),
-      ),
-  },
-  {
-    key: '3W_DEF_OPEN_BB_VS_SB_OPEN',
-    format: '3W',
-    label: 'Def 3W vs OPEN: BB vs SB open',
-    heroPosition: 'BB',
-    previousActions: ['BTN: fold', 'SB: open'],
-    getTable: (effectiveBb) =>
-      def3wVsOpenTables.tables.find(
-        (item) =>
-          item.hero_position === 'BB' &&
-          item.effective_bb === effectiveBb &&
-          typeof item.vs === 'string' &&
-          item.vs.startsWith('SB '),
-      ),
-  },
-  {
-    key: '3W_DEF_OPEN_BB_VS_BU_OPEN_SB_CALL',
-    format: '3W',
-    label: 'Def 3W vs OPEN: BB vs BU open + SB call',
-    heroPosition: 'BB',
-    previousActions: ['BTN: open', 'SB: call'],
-    getTable: (effectiveBb) =>
-      def3wVsOpenTables.tables.find(
-        (item) =>
-          item.hero_position === 'BB' &&
-          item.effective_bb === effectiveBb &&
-          typeof item.vs === 'string' &&
-          item.vs.startsWith('Open BU + Call SB '),
-      ),
-  },
-  {
-    key: '3W_DEF_LIMP_BB_VS_BTN_LIMP',
-    format: '3W',
-    label: 'Def 3W vs LIMP: BB vs BTN limp',
-    heroPosition: 'BB',
-    previousActions: ['BTN: limp', 'SB: fold'],
-    getTable: (effectiveBb) =>
-      def3wVsLimpTables.tables.find((item) => item.spot === 'bb_vs_btn_limp' && item.effective_bb === effectiveBb),
-  },
-  {
-    key: '3W_DEF_LIMP_SB_VS_BTN_LIMP',
-    format: '3W',
-    label: 'Def 3W vs LIMP: SB vs BTN limp',
-    heroPosition: 'SB',
-    previousActions: ['BTN: limp'],
-    getTable: (effectiveBb) =>
-      def3wVsLimpTables.tables.find((item) => item.spot === 'sb_vs_btn_limp' && item.effective_bb === effectiveBb),
-  },
-  {
-    key: '3W_DEF_LIMP_BB_VS_SB_LIMP',
-    format: '3W',
-    label: 'Def 3W vs LIMP: BB vs SB limp',
-    heroPosition: 'BB',
-    previousActions: ['BTN: fold', 'SB: limp'],
-    getTable: (effectiveBb) =>
-      def3wVsLimpTables.tables.find((item) => item.spot === 'bb_vs_sb_limp' && item.effective_bb === effectiveBb),
-  },
-  {
-    key: '3W_DEF_LIMP_BB_VS_DOUBLE_LIMP',
-    format: '3W',
-    label: 'Def 3W vs LIMP: BB vs double limp',
-    heroPosition: 'BB',
-    previousActions: ['BTN: limp', 'SB: limp'],
-    getTable: (effectiveBb) =>
-      def3wVsLimpTables.tables.find((item) => item.spot === 'bb_vs_limp' && item.effective_bb === effectiveBb),
-  },
-  {
-    key: '3W_CALL_OPEN_SHOVE_SB_VS_BTN',
-    format: '3W',
-    label: '3W CALL OPEN SHOVE: SB vs BTN',
-    heroPosition: 'SB',
-    previousActions: ['BTN: shove'],
-    getTable: (effectiveBb) =>
-      callOpenShoveTables.tables.find(
-        (item) => item.position === 'SB' && item.spot_id === 'sb_vs_btn' && item.effective_bb === effectiveBb,
-      ),
-  },
-  {
-    key: '3W_CALL_OPEN_SHOVE_BB_VS_BTN',
-    format: '3W',
-    label: '3W CALL OPEN SHOVE: BB vs BTN',
-    heroPosition: 'BB',
-    previousActions: ['BTN: shove', 'SB: fold'],
-    getTable: (effectiveBb) =>
-      callOpenShoveTables.tables.find(
-        (item) => item.position === 'BB' && item.spot_id === 'bb_vs_btn' && item.effective_bb === effectiveBb,
-      ),
-  },
-  {
-    key: '3W_CALL_OPEN_SHOVE_BB_VS_SB',
-    format: '3W',
-    label: '3W CALL OPEN SHOVE: BB vs SB',
-    heroPosition: 'BB',
-    previousActions: ['BTN: fold', 'SB: shove'],
-    getTable: (effectiveBb) =>
-      callOpenShoveTables.tables.find(
-        (item) => item.position === 'BB' && item.spot_id === 'bb_vs_sb' && item.effective_bb === effectiveBb,
-      ),
-  },
-  {
-    key: '3W_CALL_OPEN_SHOVE_BB_VS_2_SHOVE',
-    format: '3W',
-    label: '3W CALL OPEN SHOVE: BB vs 2 shove',
-    heroPosition: 'BB',
-    previousActions: ['BTN: shove', 'SB: shove'],
-    getTable: (effectiveBb) =>
-      callOpenShoveTables.tables.find(
-        (item) => item.position === 'BB' && item.spot_id === 'bb_vs_2_shove' && item.effective_bb === effectiveBb,
-      ),
-  },
-]
-
-export const SPOTS_HU = [
-  {
-    key: 'HU_BTN_SB_OPEN',
-    format: 'HU',
-    label: 'HU BTN/SB OPEN',
-    heroPosition: 'BTN/SB',
-    previousActions: [],
-    getTable: (effectiveBb) =>
-      huTables.tables.find((item) => item.scenario === 'BTN_SB_OPEN' && item.effective_bb === effectiveBb),
-  },
-  {
-    key: 'HU_BB_VS_OPEN',
-    format: 'HU',
-    label: 'HU BB vs OPEN',
-    heroPosition: 'BB',
-    previousActions: ['BTN/SB: open'],
-    getTable: (effectiveBb) =>
-      huTables.tables.find((item) => item.scenario === 'BB_vs_OPEN' && item.effective_bb === effectiveBb),
-  },
-  {
-    key: 'HU_BB_VS_LIMP',
-    format: 'HU',
-    label: 'HU BB vs LIMP',
-    heroPosition: 'BB',
-    previousActions: ['BTN/SB: limp'],
-    getTable: (effectiveBb) =>
-      huTables.tables.find((item) => item.scenario === 'BB_vs_LIMP' && item.effective_bb === effectiveBb),
-  },
-  {
-    key: 'HU_CALL_OPEN_SHOVE',
-    format: 'HU',
-    label: 'HU CALL OPEN SHOVE',
-    heroPosition: 'BB',
-    previousActions: ['BTN/SB: shove'],
-    getTable: (effectiveBb) =>
-      huTables.tables.find((item) => item.scenario === 'CALL_OPEN_SHOVE' && item.effective_bb === effectiveBb),
-  },
-]
-
-export const SPOTS_BY_FORMAT = {
-  '3W': SPOTS_3W,
-  HU: SPOTS_HU,
-}
-
-export const getSpotByKey = (spotKey) => {
-  return [...SPOTS_3W, ...SPOTS_HU].find((spot) => spot.key === spotKey) ?? null
-}
-
-export const resolveSpotAndTable = ({ format, spotKey, effectiveBb }) => {
-  const formatSpots = SPOTS_BY_FORMAT[format] ?? []
-  const chosenSpot = spotKey === 'RANDOM' ? randomItem(formatSpots) : formatSpots.find((spot) => spot.key === spotKey)
-
-  if (!chosenSpot) {
-    return {
-      status: 'error',
-      message: 'Spot invalide pour ce format.',
-    }
-  }
-
-  const table = chosenSpot.getTable(effectiveBb)
-  if (!table) {
-    return {
-      status: 'missing',
-      message: 'Table manquante pour ce spot / cette profondeur.',
-      spot: chosenSpot,
-    }
-  }
-
-  return {
-    status: 'ok',
-    spot: chosenSpot,
-    table,
-  }
-}
-
 export const getActionsFromGrid = (grid) => {
   const uniqueActions = [...new Set(Object.values(grid ?? {}))]
   uniqueActions.sort((a, b) => {
@@ -360,27 +120,17 @@ const weightedPoolForDifficulty = (grid, difficulty) => {
   const allPool = allHands
 
   if (difficulty === 'easy') {
-    if (Math.random() < 0.85) {
-      return pickHandFrom(topNonFold, nonFoldHands)
-    }
+    if (Math.random() < 0.85) return pickHandFrom(topNonFold, nonFoldHands)
     return pickHandFrom(allPool, ALL_HANDS)
   }
 
   if (difficulty === 'hard') {
-    if (Math.random() < 0.5 && variablePool.length > 0) {
-      return pickHandFrom(variablePool, allPool)
-    }
-
-    if (Math.random() < 0.7) {
-      return pickHandFrom(bottomNonFold, nonFoldHands)
-    }
-
+    if (Math.random() < 0.5 && variablePool.length > 0) return pickHandFrom(variablePool, allPool)
+    if (Math.random() < 0.7) return pickHandFrom(bottomNonFold, nonFoldHands)
     return pickHandFrom(nonFoldHands, allPool)
   }
 
-  if (Math.random() < 0.6) {
-    return pickHandFrom(nonFoldHands, allPool)
-  }
+  if (Math.random() < 0.6) return pickHandFrom(nonFoldHands, allPool)
   return pickHandFrom(allPool, ALL_HANDS)
 }
 

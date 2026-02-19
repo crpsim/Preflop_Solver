@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import open3WayTables from '../assets/json/open_3way_tables.json'
-import def3wVsOpenTables from '../assets/json/def_3w_vs_open_tables.json'
-import def3wVsLimpTables from '../assets/json/def_3w_vs_limp_tables.json'
-import callOpenShoveTables from '../assets/json/3w_call_open_shove_tables.json'
-import huTables from '../assets/json/hu_tables.json'
+import { PROFILE_LABELS, getAction, resolveSelectionContextToLookup } from '../ranges'
+import { formatActionLabel } from './trainerUtils'
 
 const POSITIONS_3W = [
   { id: 'BTN', label: 'Bouton' },
@@ -84,19 +81,6 @@ const baseButton = 'rounded-lg border px-3 py-2 text-sm font-semibold transition
 const MIN_EFFECTIVE_BB = 5
 const MAX_EFFECTIVE_BB = 25
 const EFFECTIVE_BB_STEP = 5
-
-const ACTION_LABELS = {
-  open: 'Open',
-  limp: 'Limp',
-  fold: 'Fold',
-  variable: 'Variable',
-  call: 'Call',
-  shove: 'Shove',
-  '3bet_nai': '3bet non all-in',
-  '3bet_ai': '3bet all-in',
-  iso_nai: 'Iso non all-in',
-  iso_ai: 'Iso all-in',
-}
 
 const normalizePreAction = (action) => {
   if (action === 'call') return 'limp'
@@ -180,7 +164,7 @@ const resolveSbSpot = (btnActionRaw) => {
   return null
 }
 
-export default function SelectionSituationPage() {
+export default function SelectionSituationPage({ profile }) {
   const [gameFormat, setGameFormat] = useState('3W')
   const [heroPosition, setHeroPosition] = useState(null)
   const [huOpponentAction, setHuOpponentAction] = useState(null)
@@ -310,293 +294,35 @@ export default function SelectionSituationPage() {
   const decisionResult = useMemo(() => {
     if (decisionContext.status !== 'ready') return null
 
-    if (decisionContext.mode === 'hu') {
-      const table = huTables.tables.find(
-        (item) => item.scenario === decisionContext.scenario && item.effective_bb === effectiveBb,
-      )
+    const lookup = resolveSelectionContextToLookup(decisionContext)
+    if (!lookup) return { status: 'error', message: 'Scenario non supporte.' }
 
-      if (!table) {
-        return {
-          status: 'error',
-          message: `Table HU introuvable (${decisionContext.scenarioLabel}, ${effectiveBb} BB).`,
-        }
-      }
+    const resolved = getAction({
+      format: lookup.format,
+      spotKey: lookup.spotKey,
+      effectiveBb,
+      handCode: handKey,
+      profile,
+    })
 
-      const action = table.grid[handKey]
-      if (!action) {
-        return {
-          status: 'error',
-          message: `Main ${handKey} absente de la table HU.`,
-        }
-      }
-
+    if (resolved.status !== 'ok') {
       return {
-        status: 'ok',
-        action,
-        actionLabel: ACTION_LABELS[action] ?? action,
-        scenarioLabel: decisionContext.scenarioLabel,
-        source: huTables.sheet,
+        status: 'error',
+        message:
+          resolved.message ??
+          `Table introuvable (${decisionContext.scenarioLabel ?? decisionContext.label}, ${effectiveBb} BB).`,
       }
     }
 
-    if (decisionContext.mode === 'open_3way') {
-      const table = open3WayTables.tables.find(
-        (item) =>
-          item.position === decisionContext.tablePosition && item.effective_bb === effectiveBb,
-      )
-
-      if (!table) {
-        return {
-          status: 'error',
-          message: `Table introuvable pour ${decisionContext.tablePosition} a ${effectiveBb} BB.`,
-        }
-      }
-
-      const action = table.grid[handKey]
-      if (!action) {
-        return {
-          status: 'error',
-          message: `Main ${handKey} absente de la table ${decisionContext.tablePosition} ${effectiveBb} BB.`,
-        }
-      }
-
-      return {
-        status: 'ok',
-        action,
-        actionLabel: ACTION_LABELS[action] ?? action,
-        scenarioLabel: decisionContext.scenarioLabel,
-        source: open3WayTables.sheet,
-      }
+    return {
+      status: 'ok',
+      action: resolved.action,
+      actionLabel: formatActionLabel(resolved.action),
+      scenarioLabel: decisionContext.scenarioLabel ?? decisionContext.label ?? resolved.spot.label,
+      source: resolved.source,
+      profile: resolved.profile,
     }
-
-    if (decisionContext.mode === 'bb_vs_open') {
-      const vsPrefixByKey = {
-        BTN_OPEN: 'BTN ',
-        SB_OPEN: 'SB ',
-        BTN_OPEN_SB_CALL: 'Open BU + Call SB ',
-      }
-      const vsPrefix = vsPrefixByKey[decisionContext.key]
-      const table = def3wVsOpenTables.tables.find(
-        (item) =>
-          item.hero_position === 'BB' &&
-          item.effective_bb === effectiveBb &&
-          typeof item.vs === 'string' &&
-          item.vs.startsWith(vsPrefix),
-      )
-
-      if (!table) {
-        return {
-          status: 'error',
-          message: `Table Def 3W vs OPEN introuvable (${decisionContext.label}, ${effectiveBb} BB).`,
-        }
-      }
-
-      const action = table.grid[handKey]
-      if (!action) {
-        return {
-          status: 'error',
-          message: `Main ${handKey} absente de la table Def 3W vs OPEN.`,
-        }
-      }
-
-      return {
-        status: 'ok',
-        action,
-        actionLabel: ACTION_LABELS[action] ?? action,
-        scenarioLabel: decisionContext.label,
-        source: def3wVsOpenTables.sheet,
-      }
-    }
-
-    if (decisionContext.mode === 'sb_vs_open') {
-      const table = def3wVsOpenTables.tables.find(
-        (item) =>
-          item.hero_position === 'SB' &&
-          item.effective_bb === effectiveBb &&
-          typeof item.vs === 'string' &&
-          item.vs.startsWith('BTN '),
-      )
-
-      if (!table) {
-        return {
-          status: 'error',
-          message: `Table Def 3W vs OPEN introuvable (${decisionContext.label}, ${effectiveBb} BB).`,
-        }
-      }
-
-      const action = table.grid[handKey]
-      if (!action) {
-        return {
-          status: 'error',
-          message: `Main ${handKey} absente de la table Def 3W vs OPEN.`,
-        }
-      }
-
-      return {
-        status: 'ok',
-        action,
-        actionLabel: ACTION_LABELS[action] ?? action,
-        scenarioLabel: decisionContext.label,
-        source: def3wVsOpenTables.sheet,
-      }
-    }
-
-    if (decisionContext.mode === 'bb_vs_limp') {
-      const table = def3wVsLimpTables.tables.find(
-        (item) => item.spot === decisionContext.key && item.effective_bb === effectiveBb,
-      )
-
-      if (!table) {
-        return {
-          status: 'error',
-          message: `Table Def 3W vs LIMP introuvable (${decisionContext.label}, ${effectiveBb} BB).`,
-        }
-      }
-
-      const action = table.grid[handKey]
-      if (!action) {
-        return {
-          status: 'error',
-          message: `Main ${handKey} absente de la table Def 3W vs LIMP.`,
-        }
-      }
-
-      return {
-        status: 'ok',
-        action,
-        actionLabel: ACTION_LABELS[action] ?? action,
-        scenarioLabel: decisionContext.label,
-        source: def3wVsLimpTables.sheet,
-      }
-    }
-
-    if (decisionContext.mode === 'sb_vs_limp') {
-      const table = def3wVsLimpTables.tables.find(
-        (item) => item.spot === decisionContext.key && item.effective_bb === effectiveBb,
-      )
-
-      if (!table) {
-        return {
-          status: 'error',
-          message: `Table Def 3W vs LIMP introuvable (${decisionContext.label}, ${effectiveBb} BB).`,
-        }
-      }
-
-      const action = table.grid[handKey]
-      if (!action) {
-        return {
-          status: 'error',
-          message: `Main ${handKey} absente de la table Def 3W vs LIMP.`,
-        }
-      }
-
-      return {
-        status: 'ok',
-        action,
-        actionLabel: ACTION_LABELS[action] ?? action,
-        scenarioLabel: decisionContext.label,
-        source: def3wVsLimpTables.sheet,
-      }
-    }
-
-    if (decisionContext.mode === 'bb_vs_shove') {
-      const table = callOpenShoveTables.tables.find(
-        (item) =>
-          item.position === 'BB' &&
-          item.spot_id === decisionContext.key &&
-          item.effective_bb === effectiveBb,
-      )
-
-      if (!table) {
-        return {
-          status: 'error',
-          message: `Table 3W CALL OPEN SHOVE introuvable (${decisionContext.label}, ${effectiveBb} BB).`,
-        }
-      }
-
-      const action = table.grid[handKey]
-      if (!action) {
-        return {
-          status: 'error',
-          message: `Main ${handKey} absente de la table 3W CALL OPEN SHOVE.`,
-        }
-      }
-
-      return {
-        status: 'ok',
-        action,
-        actionLabel: ACTION_LABELS[action] ?? action,
-        scenarioLabel: decisionContext.label,
-        source: callOpenShoveTables.sheet,
-      }
-    }
-
-    if (decisionContext.mode === 'sb_vs_shove') {
-      const table = callOpenShoveTables.tables.find(
-        (item) =>
-          item.position === 'SB' &&
-          item.spot_id === decisionContext.key &&
-          item.effective_bb === effectiveBb,
-      )
-
-      if (!table) {
-        return {
-          status: 'error',
-          message: `Table 3W CALL OPEN SHOVE introuvable (${decisionContext.label}, ${effectiveBb} BB).`,
-        }
-      }
-
-      const action = table.grid[handKey]
-      if (!action) {
-        return {
-          status: 'error',
-          message: `Main ${handKey} absente de la table 3W CALL OPEN SHOVE.`,
-        }
-      }
-
-      return {
-        status: 'ok',
-        action,
-        actionLabel: ACTION_LABELS[action] ?? action,
-        scenarioLabel: decisionContext.label,
-        source: callOpenShoveTables.sheet,
-      }
-    }
-
-    if (decisionContext.mode === 'bb_vs_sb_equivalent_shove') {
-      const table = callOpenShoveTables.tables.find(
-        (item) =>
-          item.position === 'SB' &&
-          item.spot_id === decisionContext.key &&
-          item.effective_bb === effectiveBb,
-      )
-
-      if (!table) {
-        return {
-          status: 'error',
-          message: `Table 3W CALL OPEN SHOVE introuvable (${decisionContext.label}, ${effectiveBb} BB).`,
-        }
-      }
-
-      const action = table.grid[handKey]
-      if (!action) {
-        return {
-          status: 'error',
-          message: `Main ${handKey} absente de la table 3W CALL OPEN SHOVE.`,
-        }
-      }
-
-      return {
-        status: 'ok',
-        action,
-        actionLabel: ACTION_LABELS[action] ?? action,
-        scenarioLabel: decisionContext.label,
-        source: callOpenShoveTables.sheet,
-      }
-    }
-
-    return { status: 'error', message: 'Scenario non supporte.' }
-  }, [decisionContext, effectiveBb, handKey])
+  }, [decisionContext, effectiveBb, handKey, profile])
 
   const setCardField = (cardIndex, field, value) => {
     setCards((current) =>
@@ -621,6 +347,9 @@ export default function SelectionSituationPage() {
         <header className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
           <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Spin &amp; Go helper</p>
           <h1 className="mt-2 text-xl font-bold sm:text-2xl">Selection de situation</h1>
+          <p className="mt-1 text-xs text-slate-400">
+            Profil actif: <span className="font-semibold text-slate-200">{PROFILE_LABELS[profile] ?? PROFILE_LABELS.gto}</span>
+          </p>
         </header>
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">

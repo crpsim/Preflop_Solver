@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import SelectionSituationPage from './features/SelectionSituationPage'
 import TrainerQuizPage from './features/TrainerQuizPage'
+import { DEFAULT_PROFILE, PROFILE_OPTIONS, normalizeProfile } from './ranges'
 
 const NAV_ITEMS = [
   { id: 'selection', label: 'Selection situation' },
@@ -10,6 +11,16 @@ const NAV_ITEMS = [
 export default function App() {
   const [activePage, setActivePage] = useState('selection')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [profile, setProfile] = useState(DEFAULT_PROFILE)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('opponent_profile_v1')
+    if (saved) setProfile(normalizeProfile(saved))
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('opponent_profile_v1', normalizeProfile(profile))
+  }, [profile])
 
   useEffect(() => {
     const onEscape = (event) => {
@@ -76,7 +87,31 @@ export default function App() {
       </aside>
 
       <div className="mx-auto w-full max-w-[560px] px-3 pb-4 pt-14 sm:px-4 sm:pt-16">
-        {activePage === 'selection' ? <SelectionSituationPage /> : <TrainerQuizPage />}
+        <section className="mb-3 rounded-xl border border-slate-800 bg-slate-900/70 p-3">
+          <label className="flex flex-col gap-1 text-xs text-slate-300">
+            Profil adverse
+            <select
+              value={profile}
+              onChange={(event) => setProfile(normalizeProfile(event.target.value))}
+              className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xs text-slate-100 outline-none focus:border-cyan-400"
+            >
+              {PROFILE_OPTIONS.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-1 text-[11px] text-slate-400">
+            {PROFILE_OPTIONS.find((item) => item.id === profile)?.description}
+          </p>
+        </section>
+
+        {activePage === 'selection' ? (
+          <SelectionSituationPage profile={profile} />
+        ) : (
+          <TrainerQuizPage profile={profile} />
+        )}
       </div>
     </main>
   )
