@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ACTION_LABELS,
   BB_VALUES,
   SPOTS_BY_FORMAT,
   formatActionLabel,
@@ -8,11 +7,30 @@ import {
   pickRandomHandForQuiz,
   resolveSpotAndTable,
 } from './trainerUtils'
+import PokerTableQuestion from './components/PokerTableQuestion'
 
 const STORAGE_KEY = 'trainer_quiz_stats_v1'
 const baseButton = 'rounded-lg border px-3 py-2 text-sm font-semibold transition active:scale-[0.98]'
 
 const randomItem = (items) => items[Math.floor(Math.random() * items.length)]
+const ACTION_SHORT_LABELS = {
+  fold: 'Fold',
+  check: 'Check',
+  limp: 'Limp',
+  open: 'Open',
+  call: 'Call',
+  shove: 'Shove',
+  open_shove: 'OpenShove',
+  variable: 'Variable',
+  '3bet_nai': '3bet',
+  '3bet_ai': '3bet AI',
+  iso_nai: 'Iso',
+  iso_ai: 'Iso AI',
+  iso_all_in: 'Iso AI',
+  iso_1_3_stack: 'Iso 1/3',
+  iso_size_value_call_all_in: 'Iso mix',
+  limp_fold: 'Limp/F',
+}
 
 const defaultPersistentStats = {
   totalAnswers: 0,
@@ -36,6 +54,8 @@ const loadPersistentStats = () => {
     return defaultPersistentStats
   }
 }
+
+const compactActionLabel = (action) => ACTION_SHORT_LABELS[action] ?? formatActionLabel(action)
 
 export default function TrainerQuizPage() {
   const [format, setFormat] = useState('3W')
@@ -306,8 +326,6 @@ export default function TrainerQuizPage() {
       </details>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3 sm:p-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-300">Question</h2>
-
         {!question && (
           <p className="mt-2 text-sm text-slate-300">
             Clique sur <span className="font-semibold">Nouvelle main</span> pour commencer.
@@ -315,33 +333,8 @@ export default function TrainerQuizPage() {
         )}
 
         {question && (
-          <div className="mt-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-sm">
-            <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-              <div>
-                <p className="text-slate-400">Format</p>
-                <p className="font-semibold text-slate-100">{question.format}</p>
-              </div>
-              <div>
-                <p className="text-slate-400">Ma position</p>
-                <p className="font-semibold text-slate-100">{question.heroPosition ?? '-'}</p>
-              </div>
-              <div>
-                <p className="text-slate-400">Actions precedentes</p>
-                <p className="font-semibold text-slate-100">
-                  {question.previousActions && question.previousActions.length > 0
-                    ? question.previousActions.join(' | ')
-                    : 'Aucune'}
-                </p>
-              </div>
-              <div>
-                <p className="text-slate-400">Profondeur</p>
-                <p className="font-semibold text-slate-100">{question.effectiveBb}bb</p>
-              </div>
-              <div>
-                <p className="text-slate-400">Main</p>
-                <p className="font-semibold text-amber-200">{question.hand ?? '-'}</p>
-              </div>
-            </div>
+          <div className="mt-2 space-y-2 text-sm">
+            <PokerTableQuestion question={question} />
 
             {question.status !== 'ready' && (
               <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-xs text-amber-200">
@@ -352,20 +345,20 @@ export default function TrainerQuizPage() {
             {question.status === 'ready' && (
               <div className="mt-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Ton action</p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
                   {question.actions.map((action) => (
                     <button
                       key={action}
                       type="button"
                       disabled={Boolean(feedback)}
                       onClick={() => answerQuestion(action)}
-                      className={`${baseButton} px-2 py-2 text-xs ${
+                      className={`${baseButton} max-w-full truncate px-3 py-2 text-sm ${
                         feedback?.selectedAction === action
                           ? 'border-cyan-400 bg-cyan-500/25 text-cyan-100'
                           : 'border-slate-700 bg-slate-800/70 text-slate-100 hover:border-slate-500'
                       } ${feedback ? 'cursor-not-allowed opacity-80' : ''}`}
                     >
-                      {ACTION_LABELS[action] ?? action}
+                      {compactActionLabel(action)}
                     </button>
                   ))}
                 </div>
@@ -380,9 +373,26 @@ export default function TrainerQuizPage() {
                     : 'border-rose-500/50 bg-rose-500/10 text-rose-100'
                 }`}
               >
-                <p className="font-semibold">{feedback.isCorrect ? 'Correct' : 'Incorrect'}</p>
-                <p className="mt-1">GTO: {formatActionLabel(feedback.expectedAction)}</p>
-                <p>Ton choix: {formatActionLabel(feedback.selectedAction)}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${
+                      feedback.isCorrect
+                        ? 'border-emerald-400/70 bg-emerald-500/20 text-emerald-100'
+                        : 'border-rose-400/70 bg-rose-500/20 text-rose-100'
+                    }`}
+                  >
+                    {feedback.isCorrect ? 'Correct' : 'Incorrect'}
+                  </span>
+                  <span className="text-[11px]">GTO: {formatActionLabel(feedback.expectedAction)}</span>
+                  <span className="text-[11px]">Toi: {formatActionLabel(feedback.selectedAction)}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={generateNewHand}
+                  className={`${baseButton} mt-2 border-slate-600 bg-slate-800/80 px-2 py-1 text-xs text-slate-100`}
+                >
+                  Prochaine
+                </button>
               </div>
             )}
           </div>
