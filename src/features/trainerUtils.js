@@ -282,13 +282,39 @@ export const SPOTS_BY_FORMAT = {
   HU: SPOTS_HU,
 }
 
+const withCompletePreviousActions = (spot) => {
+  if (!spot || spot.format !== '3W' || spot.heroPosition !== 'BB') {
+    return spot
+  }
+
+  const parsed = {}
+  for (const line of spot.previousActions ?? []) {
+    const [positionRaw, actionRaw] = String(line).split(':')
+    const position = positionRaw?.trim()
+    const action = actionRaw?.trim()
+    if (position && action) {
+      parsed[position] = action
+    }
+  }
+
+  if (!parsed.BTN) parsed.BTN = 'fold'
+  if (!parsed.SB) parsed.SB = 'fold'
+
+  return {
+    ...spot,
+    previousActions: [`BTN: ${parsed.BTN}`, `SB: ${parsed.SB}`],
+  }
+}
+
 export const getSpotByKey = (spotKey) => {
   return [...SPOTS_3W, ...SPOTS_HU].find((spot) => spot.key === spotKey) ?? null
 }
 
 export const resolveSpotAndTable = ({ format, spotKey, effectiveBb }) => {
   const formatSpots = SPOTS_BY_FORMAT[format] ?? []
-  const chosenSpot = spotKey === 'RANDOM' ? randomItem(formatSpots) : formatSpots.find((spot) => spot.key === spotKey)
+  const selectedSpot =
+    spotKey === 'RANDOM' ? randomItem(formatSpots) : formatSpots.find((spot) => spot.key === spotKey)
+  const chosenSpot = withCompletePreviousActions(selectedSpot)
 
   if (!chosenSpot) {
     return {
